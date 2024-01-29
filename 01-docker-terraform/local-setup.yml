@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  db:
+      image: postgres:latest
+      restart: always
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+      environment:
+        POSTGRES_USER: ${POSTGRES_USER}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        POSTGRES_DB: ${POSTGRES_DB}
+      volumes:
+        - ../data/ny_taxi_postgres_data:/var/lib/postgresql/data
+
+  python:
+    build:
+      context: .
+      args:
+      - USERNAME=${USERNAME}
+      - USER_UID=${USER_UID}
+    tty: true
+    depends_on:   
+      db:
+        condition: service_healthy
+    command: [ "jupyter", "lab", "--ip='0.0.0.0'", "--NotebookApp.token='${JUPYTER_TOKEN}'", "--allow-root", "--NotebookApp.allow_origin='*'", "--no-browser",]
+    # command: [ "jupyter", "notebook", "--ip='0.0.0.0'", "--NotebookApp.allow_origin='*'", "--allow-root", "--no-browser"]
+    ports:
+      - 8082:8888
+    volumes:
+      - ../../:/app
+    
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy  
+    ports:
+      - 8083:80
+    volumes:
+      - ../data/data_pgadmin:/var/lib/pgadmin
+
+# env_file:
+  # - path: .env
